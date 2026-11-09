@@ -1,0 +1,361 @@
+@import "tailwindcss";
+
+/* ============================================================
+   SmartRent.AI — "Toasted Almond" design system
+   Warm espresso + almond neutrals, pistachio counter-accent.
+   Tokens live as CSS custom properties so both themes share
+   one rule set; only the values swap under [data-theme].
+   ============================================================ */
+
+:root {
+  --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+:root[data-theme='light'] {
+  --bg: #f6efe2;
+  --bg-elevated: #fffdf9;
+  --surface: #ffffff;
+  --surface-tint: #efe3cd;
+  --surface-tint-strong: #e6d6b8;
+  --border: #ddc9a4;
+  --border-soft: #e9dcc0;
+
+  --ink: #2a1d12;
+  --ink-soft: #70604a;
+  --ink-faint: #9c8a6f;
+
+  --brand: #8b5a2b;
+  --brand-strong: #6f4620;
+  --brand-ink: #fffaf1;
+  --brand-soft: #f1dcb4;
+
+  --accent: #5b6e3f;
+  --accent-strong: #44531f;
+  --accent-soft: #e2e8cf;
+
+  --gold: #b9842f;
+  --gold-soft: #f3e2bc;
+
+  --danger: #a3432f;
+  --danger-soft: #f4ded5;
+  --success: #3f6e42;
+  --success-soft: #dde9da;
+
+  --shadow-card: 0 1px 2px rgba(42, 29, 18, 0.06);
+  --overlay-scrim: linear-gradient(180deg, rgba(26, 17, 8, 0.15) 0%, rgba(26, 17, 8, 0.78) 100%);
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #1c140c;
+  --bg-elevated: #211810;
+  --surface: #241a11;
+  --surface-tint: #2d2115;
+  --surface-tint-strong: #392a1a;
+  --border: #4a3a26;
+  --border-soft: #3a2d1d;
+
+  --ink: #f3e8d6;
+  --ink-soft: #c2ad8a;
+  --ink-faint: #8d775b;
+
+  --brand: #dba05a;
+  --brand-strong: #eeb673;
+  --brand-ink: #241607;
+  --brand-soft: #3c2b15;
+
+  --accent: #9bb579;
+  --accent-strong: #b2c994;
+  --accent-soft: #2c3521;
+
+  --gold: #dcae5c;
+  --gold-soft: #3a2d14;
+
+  --danger: #de8468;
+  --danger-soft: #3a2017;
+  --success: #92bd8c;
+  --success-soft: #223123;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --overlay-scrim: linear-gradient(180deg, rgba(10, 6, 2, 0.25) 0%, rgba(10, 6, 2, 0.88) 100%);
+  color-scheme: dark;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s var(--ease), color 0.25s var(--ease);
+}
+
+::selection {
+  background: var(--brand);
+  color: var(--brand-ink);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: inherit;
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  /* ---------- Layout shell ---------- */
+  .app-shell {
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-radius: var(--radius-sm);
+    padding: 0.65rem 1.25rem;
+    transition: background-color 0.18s var(--ease), border-color 0.18s var(--ease), color 0.18s var(--ease), transform 0.12s var(--ease);
+    cursor: pointer;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+  .btn:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  .btn-primary {
+    background: var(--brand);
+    color: var(--brand-ink);
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--brand-strong); }
+
+  .btn-secondary {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--ink);
+  }
+  .btn-secondary:hover:not(:disabled) { background: var(--surface-tint); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink-soft);
+  }
+  .btn-ghost:hover:not(:disabled) { color: var(--ink); background: var(--surface-tint); }
+
+  .btn-danger {
+    background: transparent;
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  .btn-danger:hover:not(:disabled) { background: var(--danger-soft); }
+
+  .btn-sm { padding: 0.4rem 0.85rem; font-size: 0.75rem; }
+  .btn-lg { padding: 0.85rem 1.75rem; font-size: 0.95rem; border-radius: var(--radius-md); }
+  .btn-block { width: 100%; }
+
+  /* ---------- Surfaces / cards ---------- */
+  .surface {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* The "tag" card motif: one clipped corner, echoing a paper price tag.
+     Used for property cards so they read as a deliberate object, not a
+     generic rounded-everywhere SaaS card. */
+  .tag-card {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 0 100%);
+    overflow: hidden;
+    transition: border-color 0.2s var(--ease), transform 0.2s var(--ease);
+  }
+  .tag-card:hover {
+    border-color: var(--brand);
+  }
+  .tag-card-corner {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 26px;
+    height: 26px;
+    background: var(--brand);
+  }
+
+  /* ---------- Inputs ---------- */
+  .field-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-bottom: 0.4rem;
+  }
+
+  .input, select.input, textarea.input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    border-radius: var(--radius-sm);
+    padding: 0.65rem 0.85rem;
+    font-size: 0.875rem;
+    font-family: var(--font-body);
+    transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+  }
+  .input::placeholder { color: var(--ink-faint); }
+  .input:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 20%, transparent);
+  }
+
+  /* Dedicated input icon offset classes */
+  .input-icon-left,
+  .input.has-icon-left,
+  .input.pl-10,
+  .input[class*="pl-10"],
+  input.has-icon-left,
+  input.pl-10 {
+    padding-left: 2.75rem !important;
+  }
+  .input-icon-right,
+  .input.has-icon-right,
+  .input.pr-10,
+  .input[class*="pr-10"],
+  input.has-icon-right,
+  input.pr-10 {
+    padding-right: 2.75rem !important;
+  }
+  .input-icon-both,
+  .input.has-icon-both,
+  .input.has-icon-left.has-icon-right,
+  .input.pl-10.pr-10,
+  .input[class*="pl-10"][class*="pr-10"],
+  input.has-icon-both,
+  input.pl-10.pr-10 {
+    padding-left: 2.75rem !important;
+    padding-right: 2.75rem !important;
+  }
+
+  /* ---------- Badges ---------- */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    line-height: 1.1;
+  }
+  .badge-brand { background: var(--brand-soft); color: var(--brand-strong); }
+  .badge-accent { background: var(--accent-soft); color: var(--accent-strong); }
+  .badge-gold { background: var(--gold-soft); color: var(--gold); }
+  .badge-success { background: var(--success-soft); color: var(--success); }
+  .badge-danger { background: var(--danger-soft); color: var(--danger); }
+  .badge-neutral { background: var(--surface-tint); color: var(--ink-soft); }
+}
+
+/* ---------- Scrollbars (dark/light aware, subtle) ---------- */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+
+/* ---------- Glow blob, used sparingly on auth pages only ---------- */
+.grain-glow {
+  position: fixed;
+  pointer-events: none;
+  border-radius: 999px;
+  filter: blur(80px);
+  background: radial-gradient(circle, var(--brand-soft) 0%, transparent 70%);
+  opacity: 0.55;
+}
+
+/* ---------- Theme toggle switch ---------- */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.theme-toggle-track {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--surface-tint-strong);
+  border: 1px solid var(--border);
+  transition: background-color 0.2s var(--ease);
+}
+.theme-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.22s var(--ease);
+}
+:root[data-theme='dark'] .theme-toggle-thumb {
+  transform: translateX(20px);
+}
+
+/* ---------- Utility: line clamps kept for card copy ---------- */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
