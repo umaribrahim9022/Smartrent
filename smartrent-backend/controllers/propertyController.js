@@ -76,11 +76,11 @@ exports.getPropertyById = async (req, res, next) => {
       throw new Error('Property not found');
     }
 
-    // Increment views count for demand calculations
-    property.viewsCount = (property.viewsCount || 0) + 1;
-    await property.save();
+    // Increment views count non-blocking in background so response is instant
+    Property.updateOne({ _id: req.params.id }, { $inc: { viewsCount: 1 } }).exec();
 
-    const demand = calculateDemand(property.viewsCount, property.bookingsCount || 0);
+    const currentViews = (property.viewsCount || 0) + 1;
+    const demand = calculateDemand(currentViews, property.bookingsCount || 0);
     const locationAnalytics = calculateLocationScore(property.location);
 
     res.status(200).json({
@@ -88,6 +88,7 @@ exports.getPropertyById = async (req, res, next) => {
       data: { 
         property: {
           ...property._doc,
+          viewsCount: currentViews,
           demand,
           locationAnalytics
         } 

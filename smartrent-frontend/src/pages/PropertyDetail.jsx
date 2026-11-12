@@ -7,13 +7,14 @@ import {
 import PropertyAnalyticsBadge from '../components/PropertyAnalyticsBadge';
 import BookmarkButton from '../components/BookmarkButton';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
 const PropertyFairRentBadge = ({ property }) => {
   const [estimatedRent, setEstimatedRent] = useState(null);
 
   useEffect(() => {
     if (!property?.location) return;
 
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
     fetch(`${API_BASE}/rent-prediction`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -30,7 +31,7 @@ const PropertyFairRentBadge = ({ property }) => {
         }
       })
       .catch((err) => console.error(err));
-  }, [property]);
+  }, [property?._id, property?.location, property?.bedrooms, property?.propertyType]);
 
   if (!estimatedRent) return null;
 
@@ -97,14 +98,14 @@ const PropertyDetail = () => {
         }
       })
       .catch(err => console.error(err));
-  }, [id, API_BASE]);
-
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+  }, [id]);
 
   useEffect(() => {
     const fetchProperty = async () => {
       try {
-        const res = await fetch(`${API_BASE}/properties/${id}`);
+        const res = await fetch(`${API_BASE}/properties/${id}?_t=${Date.now()}`, {
+          cache: 'no-store'
+        });
         const data = await res.json();
         if (data.success) {
           setProperty(data.data.property);
@@ -119,7 +120,7 @@ const PropertyDetail = () => {
     };
 
     fetchProperty();
-  }, [id, API_BASE]);
+  }, [id]);
 
   const setDurationMonths = (months) => {
     const s = bookingStart ? new Date(bookingStart) : new Date();
