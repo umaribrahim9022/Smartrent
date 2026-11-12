@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { MapPin, Bed, Bath, SlidersHorizontal, RotateCcw } from 'lucide-react';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
+import { MapPin, Bed, Bath, SlidersHorizontal, RotateCcw, CheckCircle2 } from 'lucide-react';
 import PropertyAnalyticsBadge from '../components/PropertyAnalyticsBadge';
 import BookmarkButton from '../components/BookmarkButton';
 
@@ -8,6 +8,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api
 
 const Properties = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
 
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,15 +17,19 @@ const Properties = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    fetch(`${API_BASE}/saved-properties/ids`, {
-      headers: { Authorization: `Bearer ${token}` }
+    fetch(`${API_BASE}/saved-properties/ids?_t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Cache-Control': 'no-cache'
+      }
     })
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data?.ids) setSavedIds(data.data.ids);
       })
       .catch(err => console.error(err));
-  }, []);
+  }, [location.key]);
 
   const handleBookmarkToggle = (id, isSaved) => {
     setSavedIds(prev => (isSaved ? [...prev, id] : prev.filter(x => x !== id)));
@@ -46,8 +51,15 @@ const Properties = () => {
         const cleanPrice = String(price).replace(/[^0-9.]/g, '');
         if (cleanPrice) params.set('budget', cleanPrice);
       }
+      params.set('_t', Date.now().toString());
 
-      const res = await fetch(`${API_BASE}/properties?${params.toString()}`);
+      const res = await fetch(`${API_BASE}/properties?${params.toString()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       const data = await res.json();
       if (data.success) {
         setProperties(data.data?.properties || data.properties || []);
@@ -72,7 +84,7 @@ const Properties = () => {
     setFilterPrice(price);
 
     fetchProperties(loc, type, price);
-  }, [searchParams]);
+  }, [searchParams, location.key]);
 
   const handleApply = (e) => {
     if (e) e.preventDefault();
@@ -129,6 +141,12 @@ const Properties = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-1 sm:px-2 py-2">
+      {location.state?.message && (
+        <div className="mb-5 p-3.5 rounded-xl flex items-center gap-2 text-sm font-semibold" style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}>
+          <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+          <span>{location.state.message}</span>
+        </div>
+      )}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-7">
         <div>
           <h1 className="text-2xl font-semibold" style={{ fontFamily: 'var(--font-display)', color: 'var(--ink)' }}>

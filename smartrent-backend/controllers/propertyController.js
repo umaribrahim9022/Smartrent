@@ -42,7 +42,9 @@ exports.getAllProperties = async (req, res, next) => {
       query.owner = owner;
     }
 
-    const properties = await Property.find(query).populate('owner', 'name email');
+    const properties = await Property.find(query)
+      .sort({ createdAt: -1 })
+      .populate('owner', 'name email');
     
     // Inject Demand Indicator and Location Analytics dynamically
     const formattedProperties = properties.map(prop => {
@@ -116,6 +118,11 @@ exports.createProperty = async (req, res, next) => {
     }
 
     const newProperty = await Property.create(req.body);
+    await newProperty.populate('owner', 'name email');
+
+    if (req.io) {
+      req.io.emit('propertyCreated', newProperty);
+    }
 
     res.status(201).json({
       success: true,

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Pencil, Trash2, ExternalLink, PlusSquare, Building, MapPin, Loader2 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const Profile = () => {
+  const location = useLocation();
   const [user, setUser] = useState({});
   const [myListings, setMyListings] = useState([]);
   const [loadingListings, setLoadingListings] = useState(false);
@@ -27,12 +28,18 @@ const Profile = () => {
     if (localUser._id && (localUser.role === 'owner' || localUser.role === 'admin')) {
       fetchMyListings(localUser._id);
     }
-  }, []);
+  }, [location.key]);
 
   const fetchMyListings = async (userId) => {
     setLoadingListings(true);
     try {
-      const res = await fetch(`${API_BASE}/properties?owner=${userId}`);
+      const res = await fetch(`${API_BASE}/properties?owner=${userId}&_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       const data = await res.json();
       if (data.success) {
         setMyListings(data.data?.properties || data.properties || []);

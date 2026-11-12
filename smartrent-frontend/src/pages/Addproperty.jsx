@@ -102,7 +102,12 @@ const AddProperty = () => {
       });
       const data = await res.json();
       if (data.success) {
-        navigate('/properties');
+        navigate('/properties', {
+          state: {
+            message: 'Your property has been listed successfully!',
+            newlyAddedId: data.data?.property?._id
+          }
+        });
       } else {
         setError(data.message || 'Failed to publish property');
       }

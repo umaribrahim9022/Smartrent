@@ -27,6 +27,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Prevent aggressive HTTP caching on API endpoints so client always sees immediate fresh data
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.set('Surrogate-Control', 'no-store');
+  next();
+});
+
 // Socket.io Setup for Real-time Messaging & Notifications
 const io = new Server(server, {
   cors: {

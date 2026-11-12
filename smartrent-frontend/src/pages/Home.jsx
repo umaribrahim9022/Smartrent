@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Search, MapPin, Bed, Bath, Sparkles, TrendingUp, ArrowUpRight } from 'lucide-react';
 import BookmarkButton from '../components/BookmarkButton';
 
@@ -65,6 +65,7 @@ const StaticPropertyCard = ({ title, price, location, type, match, beds, baths, 
 
 const Home = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchLocation, setSearchLocation] = useState('');
   const [searchBudget, setSearchBudget] = useState('');
   const [searchType, setSearchType] = useState('');
@@ -75,15 +76,19 @@ const Home = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    fetch(`${API_BASE}/saved-properties/ids`, {
-      headers: { Authorization: `Bearer ${token}` }
+    fetch(`${API_BASE}/saved-properties/ids?_t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Cache-Control': 'no-cache'
+      }
     })
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data?.ids) setSavedIds(data.data.ids);
       })
       .catch(err => console.error(err));
-  }, []);
+  }, [location.key]);
 
   const handleBookmarkToggle = (id, isSaved) => {
     setSavedIds(prev => (isSaved ? [...prev, id] : prev.filter(x => x !== id)));
@@ -93,7 +98,14 @@ const Home = () => {
     const token = localStorage.getItem('token');
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-    fetch(`${API_BASE}/recommendations`, { headers })
+    fetch(`${API_BASE}/recommendations?_t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: {
+        ...headers,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    })
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
@@ -102,7 +114,7 @@ const Home = () => {
       })
       .catch((err) => console.error('Failed to load recommendations:', err))
       .finally(() => setLoadingRecs(false));
-  }, []);
+  }, [location.key]);
 
   const handleSearch = (e) => {
     e.preventDefault();
