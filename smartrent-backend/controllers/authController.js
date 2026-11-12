@@ -12,7 +12,12 @@ exports.login = async (req, res) => {
     return res.status(200).json({ success: true, ...result });
   } catch (error) {
     const statusCode = error.statusCode || 500;
-    return res.status(statusCode).json({ success: false, message: error.message || 'Internal Server Error' });
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || 'Internal Server Error',
+      needsVerification: error.needsVerification || false,
+      email: error.email || undefined
+    });
   }
 };
 
@@ -29,6 +34,23 @@ exports.register = async (req, res) => {
     return res.status(201).json({ success: true, ...result });
   } catch (error) {
     console.error('Registration Error:', error.message);
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({ success: false, message: error.message || 'Internal Server Error' });
+  }
+};
+
+// --- RESEND OTP CONTROLLER ---
+exports.resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required to resend OTP' });
+    }
+
+    const result = await authService.resendOTP(email);
+    return res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    console.error('Resend OTP Error:', error.message);
     const statusCode = error.statusCode || 500;
     return res.status(statusCode).json({ success: false, message: error.message || 'Internal Server Error' });
   }

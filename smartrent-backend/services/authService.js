@@ -18,6 +18,8 @@ exports.loginUser = async (email, password) => {
   if (!user.isVerified) {
     const error = new Error('Please verify your email before logging in. If you just registered, check your email for the OTP.');
     error.statusCode = 403;
+    error.needsVerification = true;
+    error.email = user.email;
     throw error;
   }
 
@@ -46,50 +48,115 @@ exports.registerUser = async (name, email, password, role) => {
 
   // 1. Check if user already exists
   const existingUser = await User.findOne({ email: cleanEmail });
-  if (existingUser) {
+  if (existingUser && existingUser.isVerified) {
     const error = new Error('User with this email already exists');
     error.statusCode = 400;
     throw error;
   }
 
-  // Generate 6 digit OTP
+  // Generate 6 digit OTP & 10 min expiration
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpExpire = Date.now() + 10 * 60 * 1000;
 
-  // 2. Create new user (Password hash automatically hoga User model pre-save hook se)
-  const user = await User.create({
-    name,
-    email: cleanEmail,
-    password,
-    role: role || 'renter',
-    isVerified: false,
-    verificationCode: otp,
-    verificationCodeExpire: Date.now() + 10 * 60 * 1000 // 10 minutes
-  });
-
-  // 3. Send OTP via email
-  try {
-    await sendEmail({
-      email: user.email,
-      subject: 'SmartRent Email Verification OTP',
-      message: `Your verification code is ${otp}. It will expire in 10 minutes.`,
-      html: `
-        <h3>Welcome to SmartRent!</h3>
-        <p>Please use the following OTP to verify your email address. It will expire in 10 minutes.</p>
-        <h2 style="background: #f4f4f4; padding: 10px; display: inline-block; letter-spacing: 2px;">${otp}</h2>
-        <p>If you did not request this, please ignore this email.</p>
-      `
+  let user;
+  if (existingUser && !existingUser.isVerified) {
+    // Reuse and update unverified account
+    existingUser.name = name;
+    existingUser.password = password; // Will be hashed by pre('save') hook
+    if (role) existingUser.role = role;
+    existingUser.verificationCode = otp;
+    existingUser.verificationCodeExpire = otpExpire;
+    user = await existingUser.save();
+  } else {
+    // Create new user (pre('save') hook handles password hashing)
+    user = await User.create({
+      name,
+      email: cleanEmail,
+      password,
+      role: role || 'renter',
+      isVerified: false,
+      verificationCode: otp,
+      verificationCodeExpire: otpExpire
     });
-  } catch (error) {
-    console.error('Email error: ', error);
-    // Even if email fails, user is created, but we can return an error
-    const emailError = new Error('Registration successful but OTP email could not be sent. Please contact support.');
-    emailError.statusCode = 500;
-    throw emailError;
   }
 
-  // Do NOT return a token yet. The user must verify the OTP first.
+  // Always log OTP to server console for instant local development/debugging visibility
+  console.log(`\n=========================================`);
+  console.log(`[SmartRent OTP] Code for ${user.email}: [ ${otp} ]`);
+  console.log(`=========================================\n`);
+
+  // 3. Send OTP via email in background (instant non-blocking response)
+  sendEmail({
+    email: user.email,
+    subject: 'SmartRent Email Verification OTP',
+    message: `Your verification code is ${otp}. It will expire in 10 minutes.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <h2 style="color: #4f46e5; margin-top: 0; font-size: 22px;">SmartRent.AI Verification</h2>
+        <p style="color: #475569; font-size: 15px; line-height: 1.5;">Welcome to SmartRent! Please enter the 6-digit code below to verify your email address:</p>
+        <div style="text-align: center; margin: 28px 0;">
+          <span style="display: inline-block; font-size: 32px; font-weight: 700; letter-spacing: 6px; padding: 12px 28px; background: #eef2ff; color: #4338ca; border-radius: 8px; border: 1px dashed #6366f1;">${otp}</span>
+        </div>
+        <p style="color: #64748b; font-size: 13px; line-height: 1.4;">This code is valid for 10 minutes. If you did not create an account with SmartRent, you can safely ignore this email.</p>
+      </div>
+    `
+  }).catch((error) => {
+    console.warn(`[OTP Email Warning] Could not send email immediately to ${user.email}:`, error.message);
+  });
+
   return {
     message: 'OTP sent successfully. Please check your email.',
+    email: user.email
+  };
+};
+
+// --- RESEND OTP SERVICE ---
+exports.resendOTP = async (email) => {
+  const cleanEmail = email ? email.toLowerCase().trim() : '';
+  const user = await User.findOne({ email: cleanEmail });
+
+  if (!user) {
+    const error = new Error('No account found with this email address.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (user.isVerified) {
+    const error = new Error('This account is already verified. Please log in.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Generate fresh 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  user.verificationCode = otp;
+  user.verificationCodeExpire = Date.now() + 10 * 60 * 1000;
+  await user.save();
+
+  console.log(`\n=========================================`);
+  console.log(`[SmartRent OTP Resend] Code for ${user.email}: [ ${otp} ]`);
+  console.log(`=========================================\n`);
+
+  sendEmail({
+    email: user.email,
+    subject: 'SmartRent Verification OTP (Resend)',
+    message: `Your new verification code is ${otp}. It will expire in 10 minutes.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <h2 style="color: #4f46e5; margin-top: 0; font-size: 22px;">SmartRent.AI Verification</h2>
+        <p style="color: #475569; font-size: 15px; line-height: 1.5;">Here is your requested new verification code:</p>
+        <div style="text-align: center; margin: 28px 0;">
+          <span style="display: inline-block; font-size: 32px; font-weight: 700; letter-spacing: 6px; padding: 12px 28px; background: #eef2ff; color: #4338ca; border-radius: 8px; border: 1px dashed #6366f1;">${otp}</span>
+        </div>
+        <p style="color: #64748b; font-size: 13px; line-height: 1.4;">This code is valid for 10 minutes.</p>
+      </div>
+    `
+  }).catch((error) => {
+    console.warn(`[OTP Resend Email Warning] Could not send email immediately to ${user.email}:`, error.message);
+  });
+
+  return {
+    message: 'A new verification code has been sent to your email.',
     email: user.email
   };
 };
@@ -97,14 +164,16 @@ exports.registerUser = async (name, email, password, role) => {
 // --- VERIFY EMAIL SERVICE ---
 exports.verifyEmail = async (email, otp) => {
   const cleanEmail = email ? email.toLowerCase().trim() : '';
+  const cleanOtp = otp ? otp.toString().trim() : '';
+
   const user = await User.findOne({ 
     email: cleanEmail,
-    verificationCode: otp,
+    verificationCode: cleanOtp,
     verificationCodeExpire: { $gt: Date.now() }
   });
 
   if (!user) {
-    const error = new Error('Invalid or expired OTP');
+    const error = new Error('Invalid or expired OTP. Please check the code or request a new one.');
     error.statusCode = 400;
     throw error;
   }
@@ -170,7 +239,7 @@ exports.forgotPassword = async (email, origin) => {
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
     await user.save();
-    console.error('Email error: ', error);
+    console.error('Email error: ', error.message);
     const emailError = new Error('Email could not be sent. Check SMTP configuration.');
     emailError.statusCode = 500;
     throw emailError;

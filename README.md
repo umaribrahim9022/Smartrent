@@ -65,3 +65,4 @@ This repository is monorepo-ready for Railway:
    - **Root Directory:** `/smartrent-frontend`
    - **Build Command:** `npm run build`
    - **Variables:** Set `VITE_API_BASE_URL` to your backend's public Railway URL.
+

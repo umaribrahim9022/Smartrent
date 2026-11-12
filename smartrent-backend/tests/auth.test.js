@@ -2,6 +2,7 @@ const request = require('supertest');
 const bcrypt = require('bcryptjs');
 
 jest.mock('../models/User');
+jest.mock('../utils/sendEmail', () => jest.fn().mockResolvedValue({ messageId: 'test-message-id' }));
 const User = require('../models/User');
 const { app } = require('../app');
 
@@ -16,7 +17,8 @@ describe('Auth Module (TC-01 to TC-05)', () => {
       name: 'Ali Raza',
       email: 'ali@example.com',
       role: 'renter',
-      password: hashedPassword
+      password: hashedPassword,
+      isVerified: true
     });
 
     const res = await request(app)
@@ -36,7 +38,8 @@ describe('Auth Module (TC-01 to TC-05)', () => {
       _id: 'u1',
       email: 'ali@example.com',
       role: 'renter',
-      password: hashedPassword
+      password: hashedPassword,
+      isVerified: true
     });
 
     const res = await request(app)
@@ -62,13 +65,14 @@ describe('Auth Module (TC-01 to TC-05)', () => {
   });
 
   // TC-04: User registers with valid information
-  test('TC-04: register with valid info creates account and returns token', async () => {
+  test('TC-04: register with valid info creates account and returns OTP message', async () => {
     User.findOne.mockResolvedValue(null); // no existing user
     User.create.mockResolvedValue({
       _id: 'u2',
       name: 'Hammad Haider',
       email: 'hammad@example.com',
-      role: 'renter'
+      role: 'renter',
+      isVerified: false
     });
 
     const res = await request(app).post('/api/auth/register').send({
@@ -79,13 +83,13 @@ describe('Auth Module (TC-01 to TC-05)', () => {
 
     expect(res.statusCode).toBe(201);
     expect(res.body.success).toBe(true);
-    expect(res.body.token).toBeDefined();
-    expect(res.body.user.email).toBe('hammad@example.com');
+    expect(res.body.message).toMatch(/OTP/i);
+    expect(res.body.email).toBe('hammad@example.com');
   });
 
   // TC-05: User registers using an already registered email
   test('TC-05: register with already-registered email returns Email Already Exists error', async () => {
-    User.findOne.mockResolvedValue({ _id: 'u1', email: 'ali@example.com' });
+    User.findOne.mockResolvedValue({ _id: 'u1', email: 'ali@example.com', isVerified: true });
 
     const res = await request(app).post('/api/auth/register').send({
       name: 'Ali Raza',
