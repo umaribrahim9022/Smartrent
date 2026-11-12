@@ -197,62 +197,85 @@ exports.verifyEmail = async (email, otp) => {
 };
 
 // --- FORGOT PASSWORD SERVICE ---
-exports.forgotPassword = async (email, origin) => {
+exports.forgotPassword = async (email) => {
   const cleanEmail = email ? email.toLowerCase().trim() : '';
   const user = await User.findOne({ email: cleanEmail });
   
   if (!user) {
-    const error = new Error('User not found with this email');
+    const error = new Error('No account found with this email address');
     error.statusCode = 404;
     throw error;
   }
 
-  // Create reset token
-  const resetToken = crypto.randomBytes(20).toString('hex');
-  
-  // Hash token and set to resetPasswordToken field
-  user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
   
   // Set expire (10 minutes)
+  user.resetPasswordToken = otp;
   user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
-  
   await user.save();
 
-  // Create reset URL
-  const resetUrl = `${origin}/reset-password/${resetToken}`;
-  const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a PUT/POST request to: \n\n ${resetUrl}`;
+  console.log(`\n=========================================`);
+  console.log(`[SmartRent Password Reset OTP] Code for ${user.email}: [ ${otp} ]`);
+  console.log(`=========================================\n`);
 
-  try {
-    await sendEmail({
-      email: user.email,
-      subject: 'SmartRent Password Reset',
-      message: message,
-      html: `
-        <h3>SmartRent Password Reset</h3>
-        <p>You are receiving this email because you (or someone else) has requested the reset of a password.</p>
-        <p>Please click the link below to reset your password:</p>
-        <a href="${resetUrl}">${resetUrl}</a>
-        <p>If you did not request this, please ignore this email.</p>
-      `
-    });
-  } catch (error) {
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-    await user.save();
-    console.error('Email error: ', error.message);
-    const emailError = new Error('Email could not be sent. Check SMTP configuration.');
-    emailError.statusCode = 500;
-    throw emailError;
-  }
+  // Send reset OTP non-blocking
+  sendEmail({
+    email: user.email,
+    subject: 'SmartRent Password Reset OTP',
+    message: `Your password reset code is ${otp}. It will expire in 10 minutes.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <h2 style="color: #4f46e5; margin-top: 0; font-size: 22px;">SmartRent.AI Password Reset</h2>
+        <p style="color: #475569; font-size: 15px; line-height: 1.5;">You requested to reset your password. Use the 6-digit code below to set a new password:</p>
+        <div style="text-align: center; margin: 28px 0;">
+          <span style="display: inline-block; font-size: 32px; font-weight: 700; letter-spacing: 6px; padding: 12px 28px; background: #eef2ff; color: #4338ca; border-radius: 8px; border: 1px dashed #6366f1;">${otp}</span>
+        </div>
+        <p style="color: #64748b; font-size: 13px; line-height: 1.4;">This code is valid for 10 minutes. If you did not request a password reset, you can safely ignore this email.</p>
+      </div>
+    `
+  }).catch((err) => {
+    console.warn(`[Forgot Password Email Warning] Could not send email immediately to ${user.email}:`, err.message);
+  });
+
+  return {
+    message: 'Verification code sent successfully. Please check your email.',
+    email: user.email
+  };
 };
 
-// --- RESET PASSWORD SERVICE ---
-exports.resetPassword = async (resetToken, newPassword) => {
-  // Get hashed token
-  const resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+// --- RESET PASSWORD WITH OTP SERVICE ---
+exports.resetPasswordWithOtp = async (email, otp, newPassword) => {
+  const cleanEmail = email ? email.toLowerCase().trim() : '';
+  const cleanOtp = otp ? otp.toString().trim() : '';
 
   const user = await User.findOne({
-    resetPasswordToken,
+    email: cleanEmail,
+    resetPasswordToken: cleanOtp,
+    resetPasswordExpire: { $gt: Date.now() }
+  });
+
+  if (!user) {
+    const error = new Error('Invalid or expired verification code. Please check the code or request a new one.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Set new password (the pre-save hook will hash it automatically)
+  user.password = newPassword;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpire = undefined;
+  await user.save();
+
+  return {
+    message: 'Password updated successfully. You can now log in with your new password.'
+  };
+};
+
+// --- RESET PASSWORD (LEGACY TOKEN) SERVICE ---
+exports.resetPassword = async (resetToken, newPassword) => {
+  const user = await User.findOne({
+    resetPasswordToken: resetToken,
     resetPasswordExpire: { $gt: Date.now() }
   });
 
@@ -262,10 +285,8 @@ exports.resetPassword = async (resetToken, newPassword) => {
     throw error;
   }
 
-  // Set new password
-  user.password = newPassword; // the pre-save hook will hash it
+  user.password = newPassword;
   user.resetPasswordToken = undefined;
   user.resetPasswordExpire = undefined;
-
   await user.save();
 };

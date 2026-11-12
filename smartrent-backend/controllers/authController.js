@@ -61,14 +61,11 @@ exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
-      return res.status(400).json({ success: false, message: 'Please provide an email' });
+      return res.status(400).json({ success: false, message: 'Please provide an email address' });
     }
 
-    // Determine the frontend origin (could be from env or referer)
-    const origin = req.headers.origin || process.env.CLIENT_URL || 'http://localhost:5173';
-
-    await authService.forgotPassword(email, origin);
-    return res.status(200).json({ success: true, message: 'Email sent successfully' });
+    const result = await authService.forgotPassword(email);
+    return res.status(200).json({ success: true, ...result });
   } catch (error) {
     const statusCode = error.statusCode || 500;
     return res.status(statusCode).json({ success: false, message: error.message || 'Internal Server Error' });
@@ -78,15 +75,23 @@ exports.forgotPassword = async (req, res) => {
 // --- RESET PASSWORD CONTROLLER ---
 exports.resetPassword = async (req, res) => {
   try {
-    const { token } = req.params;
-    const { password } = req.body;
+    const token = req.params.token || req.body.token || req.body.otp;
+    const { email, password, newPassword } = req.body;
+    const finalPassword = password || newPassword;
 
-    if (!password) {
+    if (!finalPassword) {
       return res.status(400).json({ success: false, message: 'Please provide a new password' });
     }
 
-    await authService.resetPassword(token, password);
-    return res.status(200).json({ success: true, message: 'Password updated successfully' });
+    if (email && (req.body.otp || token)) {
+      const result = await authService.resetPasswordWithOtp(email, req.body.otp || token, finalPassword);
+      return res.status(200).json({ success: true, ...result });
+    } else if (token) {
+      await authService.resetPassword(token, finalPassword);
+      return res.status(200).json({ success: true, message: 'Password updated successfully' });
+    } else {
+      return res.status(400).json({ success: false, message: 'Verification code or token is required' });
+    }
   } catch (error) {
     const statusCode = error.statusCode || 500;
     return res.status(statusCode).json({ success: false, message: error.message || 'Internal Server Error' });

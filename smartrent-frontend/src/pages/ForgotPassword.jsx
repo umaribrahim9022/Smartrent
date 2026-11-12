@@ -1,116 +1,317 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Mail, ArrowLeft, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { KeyRound, Mail, Lock, Eye, EyeOff, ArrowLeft, RefreshCw, CheckCircle2 } from 'lucide-react';
 
 const ForgotPassword = () => {
+  const navigate = useNavigate();
+  const [step, setStep] = useState('email'); // 'email' | 'reset'
   const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resending, setResending] = useState(false);
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
-  const handleSubmit = async (e) => {
+  useEffect(() => {
+    let timer;
+    if (resendCooldown > 0) {
+      timer = setInterval(() => {
+        setResendCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  // Step 1: Send OTP to Email
+  const handleSendOtp = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
-    setMessage('');
+    if (!email || !email.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
+
+    setLoading(true);
     setError('');
+    setSuccessMsg('');
 
     try {
       const res = await fetch(`${API_BASE}/auth/forgot-password`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
-
       const data = await res.json();
-      if (res.ok) {
-        setMessage('Password reset link has been sent to your email.');
+
+      if (data.success) {
+        setStep('reset');
+        setResendCooldown(60);
+        setSuccessMsg(data.message || 'Verification code sent! Please check your email.');
       } else {
-        setError(data.message || 'Something went wrong');
+        setError(data.message || 'Failed to send verification code. Please check your email.');
       }
     } catch (err) {
-      setError('Failed to connect to server. Please try again later.');
+      setError('Server connection error. Please try again.');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
+    }
+  };
+
+  // Step 2: Verify OTP and Reset Password
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+
+    if (!otp || otp.trim().length < 4) {
+      setError('Please enter the 6-digit verification code.');
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      setError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          otp: otp.trim(),
+          password: newPassword,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setSuccessMsg('Password updated successfully! Redirecting to login…');
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+      } else {
+        setError(data.message || 'Failed to reset password. Please check your OTP.');
+      }
+    } catch (err) {
+      setError('Server connection error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend OTP
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || resending) return;
+
+    setResending(true);
+    setError('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setResendCooldown(60);
+        setSuccessMsg('A new verification code has been sent to your email.');
+      } else {
+        setError(data.message || 'Could not resend code. Please try again.');
+      }
+    } catch (err) {
+      setError('Server connection error while resending code.');
+    } finally {
+      setResending(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl">
-        <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-            Forgot Password
-          </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Enter your email address and we'll send you a link to reset your password.
+    <div className="min-h-[calc(100vh-140px)] w-full flex items-center justify-center px-4 py-14 relative">
+      <div className="grain-glow w-[420px] h-[420px] top-1/4 left-1/2 -translate-x-1/2" />
+
+      <div className="surface relative z-10 w-full max-w-sm p-8 space-y-5">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <div className="p-3 rounded-xl" style={{ background: 'var(--brand-soft)' }}>
+            {step === 'reset' ? (
+              <Lock className="w-7 h-7" style={{ color: 'var(--brand)' }} />
+            ) : (
+              <KeyRound className="w-7 h-7" style={{ color: 'var(--brand)' }} />
+            )}
+          </div>
+          <h1 className="text-2xl font-semibold mt-1" style={{ fontFamily: 'var(--font-display)', color: 'var(--ink)' }}>
+            {step === 'reset' ? 'Reset Password' : 'Forgot Password'}
+          </h1>
+          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
+            {step === 'reset' ? (
+              <span>
+                Enter the code sent to <strong className="font-semibold text-primary">{email}</strong>
+              </span>
+            ) : (
+              'Enter your email to receive a 6-digit reset code.'
+            )}
           </p>
         </div>
-        
-        {message && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
-            {message}
-          </div>
-        )}
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <div className="p-3 rounded-xl text-xs font-medium text-center" style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}>
             {error}
           </div>
         )}
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Email address
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
+        {successMsg && (
+          <div className="p-3 rounded-xl text-xs font-medium text-center flex items-center justify-center gap-1.5" style={{ background: '#ecfdf5', color: '#047857' }}>
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {step === 'email' ? (
+          /* STEP 1: ENTER EMAIL */
+          <form onSubmit={handleSendOtp} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="field-label">Email address</label>
+              <div className="relative flex items-center">
+                <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--ink-faint)' }} />
                 <input
-                  id="email"
-                  name="email"
                   type="email"
-                  autoComplete="email"
                   required
+                  autoFocus
+                  placeholder="jane@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  placeholder="you@example.com"
+                  className="input has-icon-left pl-10"
                 />
               </div>
             </div>
-          </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isLoading ? (
-                <Loader2 className="animate-spin h-5 w-5" />
-              ) : (
-                'Send Reset Link'
-              )}
+            <button type="submit" disabled={loading} className="btn btn-primary btn-block btn-lg">
+              {loading ? 'Sending code…' : 'Send Reset Code'}
             </button>
-          </div>
-        </form>
 
-        <div className="mt-6 flex justify-center">
-          <Link
-            to="/login"
-            className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to login
-          </Link>
-        </div>
+            <div className="text-center pt-2">
+              <Link to="/login" className="inline-flex items-center gap-1 text-xs font-semibold hover:underline" style={{ color: 'var(--brand)' }}>
+                <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign in
+              </Link>
+            </div>
+          </form>
+        ) : (
+          /* STEP 2: ENTER OTP & NEW PASSWORD */
+          <form onSubmit={handleResetPassword} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="field-label text-center block">Verification Code (OTP)</label>
+              <input
+                type="text"
+                maxLength={6}
+                required
+                autoFocus
+                placeholder="123456"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                className="input text-center text-xl font-bold tracking-widest py-3"
+                style={{ letterSpacing: '8px' }}
+              />
+              <p className="text-[11px] text-center" style={{ color: 'var(--ink-faint)' }}>
+                Check inbox and Spam/Junk folder.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="field-label">New password</label>
+              <div className="relative flex items-center">
+                <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--ink-faint)' }} />
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  required
+                  placeholder="At least 6 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="input has-icon-both pl-10 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center p-1 cursor-pointer"
+                  style={{ color: 'var(--ink-faint)' }}
+                  aria-label={showPass ? 'Hide password' : 'Show password'}
+                >
+                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="field-label">Confirm new password</label>
+              <div className="relative flex items-center">
+                <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--ink-faint)' }} />
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  required
+                  placeholder="Repeat new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="input has-icon-both pl-10 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center p-1 cursor-pointer"
+                  style={{ color: 'var(--ink-faint)' }}
+                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" disabled={loading} className="btn btn-primary btn-block btn-lg">
+              {loading ? 'Updating password…' : 'Update Password'}
+            </button>
+
+            <div className="flex items-center justify-between pt-2 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setStep('email');
+                  setError('');
+                  setSuccessMsg('');
+                }}
+                className="inline-flex items-center gap-1 font-medium hover:underline"
+                style={{ color: 'var(--ink-soft)' }}
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> Change email
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={resendCooldown > 0 || resending}
+                className="inline-flex items-center gap-1 font-semibold disabled:opacity-50 hover:underline"
+                style={{ color: 'var(--brand)' }}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${resending ? 'animate-spin' : ''}`} />
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
