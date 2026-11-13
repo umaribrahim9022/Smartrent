@@ -13,6 +13,7 @@ const Properties = () => {
 
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [savedIds, setSavedIds] = useState([]);
 
   useEffect(() => {
@@ -44,6 +45,7 @@ const Properties = () => {
 
   const fetchProperties = async (loc, type, price) => {
     setLoading(true);
+    setError('');
     try {
       const params = new URLSearchParams();
       if (loc && loc.trim()) params.set('location', loc.trim());
@@ -54,22 +56,35 @@ const Properties = () => {
       }
       params.set('_t', Date.now().toString());
 
-      const res = await fetch(`${API_BASE}/properties?${params.toString()}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      });
-      const data = await res.json();
-      if (data.success) {
-        setProperties(data.data?.properties || data.properties || []);
-      } else {
-        setProperties([]);
+      const url = `${API_BASE}/properties?${params.toString()}`;
+      const request = async () => {
+        const res = await fetch(url, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          },
+          signal: AbortSignal.timeout(20000)
+        });
+        if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'Failed to load listings');
+        return data.data?.properties || data.properties || [];
+      };
+
+      let list;
+      try {
+        list = await request();
+      } catch (firstErr) {
+        // Railway cold starts can drop the first request; retry once.
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        list = await request();
       }
+      setProperties(list);
     } catch (err) {
       console.error('Failed to fetch properties:', err);
       setProperties([]);
+      setError(err?.message || 'Could not reach the server.');
     } finally {
       setLoading(false);
     }
@@ -104,6 +119,14 @@ const Properties = () => {
     setFilterType('');
     setFilterPrice('');
     setSearchParams(new URLSearchParams());
+  };
+
+  const handleRetry = () => {
+    fetchProperties(
+      searchParams.get('location') || '',
+      searchParams.get('type') || '',
+      searchParams.get('maxPrice') || searchParams.get('budget') || ''
+    );
   };
 
   const handleBook = async (propertyId, price) => {
@@ -154,7 +177,7 @@ const Properties = () => {
             Browse properties
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--ink-soft)' }}>
-            {loading ? 'Searching listings…' : `${properties.length} listings available`}
+            {loading ? 'Searching listings…' : error ? 'Listings could not be loaded' : `${properties.length} listings available`}
             {hasActiveFilters && !loading && ' (filtered)'}
           </p>
         </div>
@@ -225,6 +248,18 @@ const Properties = () => {
         <p className="text-sm py-12 text-center" style={{ color: 'var(--ink-faint)' }}>
           Loading listings…
         </p>
+      ) : error ? (
+        <div className="surface p-12 text-center my-6 space-y-3">
+          <p className="text-base font-semibold" style={{ fontFamily: 'var(--font-display)', color: 'var(--ink)' }}>
+            Couldn't load listings
+          </p>
+          <p className="text-xs max-w-md mx-auto" style={{ color: 'var(--ink-soft)' }}>
+            {error} Check your connection and try again.
+          </p>
+          <button onClick={handleRetry} className="btn btn-primary btn-sm mt-2">
+            Retry
+          </button>
+        </div>
       ) : properties.length === 0 ? (
         <div className="surface p-12 text-center my-6 space-y-3">
           <p className="text-base font-semibold" style={{ fontFamily: 'var(--font-display)', color: 'var(--ink)' }}>
@@ -233,7 +268,9 @@ const Properties = () => {
           <p className="text-xs max-w-md mx-auto" style={{ color: 'var(--ink-soft)' }}>
             {filterPrice
               ? `No listings found within max budget PKR ${Number(String(filterPrice).replace(/[^0-9.]/g, '')).toLocaleString()}. Try increasing your budget or checking another location.`
-              : 'Try broadening your search criteria or clearing active filters.'}
+              : hasActiveFilters
+              ? 'Try broadening your search criteria or clearing active filters.'
+              : 'No listings are available right now. Please check back soon.'}
           </p>
           {hasActiveFilters && (
             <button onClick={handleClear} className="btn btn-secondary btn-sm mt-2">

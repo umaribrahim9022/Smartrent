@@ -1,5 +1,5 @@
 // SmartRent Service Worker
-const CACHE_NAME = 'smartrent-cache-v2';
+const CACHE_NAME = 'smartrent-cache-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
