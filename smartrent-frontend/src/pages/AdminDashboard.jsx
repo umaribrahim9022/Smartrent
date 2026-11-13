@@ -5,6 +5,9 @@ import {
   Clock, CheckCircle, XCircle, Pencil
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { getStoredToken } from '../utils/authStorage';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({ totalUsers: 0, totalProperties: 0, totalBookings: 0, totalRevenue: 0 });
@@ -21,8 +24,7 @@ const AdminDashboard = () => {
   const [propertySearch, setPropertySearch] = useState('');
   const [bookingSearch, setBookingSearch] = useState('');
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-  const token = localStorage.getItem('token');
+  const token = getStoredToken();
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Building2, Mail, Lock, User, Eye, EyeOff, KeyRound, ArrowLeft, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { setStoredAuth } from '../utils/authStorage';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -94,8 +95,7 @@ const Register = () => {
       const data = await res.json();
 
       if (data.success && data.token) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        setStoredAuth(data.token, data.user);
         navigate('/');
       } else {
         setError(data.message || 'Invalid or expired OTP. Please try again.');

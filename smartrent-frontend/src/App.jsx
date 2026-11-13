@@ -18,10 +18,12 @@ import Recommendations from './pages/Recommendations';
 import PropertyDetail from './pages/PropertyDetail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import ErrorBoundary from './components/ErrorBoundary';
+import { getStoredToken, getStoredUser } from './utils/authStorage';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const token = getStoredToken();
+  const user = getStoredUser();
   if (!token) return <Navigate to="/login" replace />;
   if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
   return children;
@@ -30,7 +32,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 const MainLayout = ({ children }) => {
   const location = useLocation();
   const isHome = location.pathname === '/';
-  return <main className={`flex-grow w-full ${isHome ? '' : 'px-4 py-6'}`}>{children}</main>;
+  return (
+    <main className={`flex-grow w-full ${isHome ? '' : 'px-4 py-6'}`}>
+      <ErrorBoundary>{children}</ErrorBoundary>
+    </main>
+  );
 };
 
 function App() {

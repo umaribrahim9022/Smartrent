@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Upload, X, Sparkles } from 'lucide-react';
+import { getStoredToken } from '../utils/authStorage';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const AddProperty = () => {
   const navigate = useNavigate();
@@ -28,7 +31,6 @@ const AddProperty = () => {
     setSuggesting(true);
     setError('');
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
       const res = await fetch(`${API_BASE}/rent-prediction`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,8 +91,7 @@ const AddProperty = () => {
     }
     setLoading(true);
     setError('');
-    const token = localStorage.getItem('token');
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+    const token = getStoredToken();
     const bodyData = new FormData();
     Object.keys(formData).forEach(key => bodyData.append(key, formData[key]));
     selectedFiles.forEach(file => bodyData.append('images', file));

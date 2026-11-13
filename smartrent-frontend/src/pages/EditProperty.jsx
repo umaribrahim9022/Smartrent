@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Pencil, Upload, X, Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
+import { getStoredUser, getStoredToken } from '../utils/authStorage';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -29,8 +30,8 @@ const EditProperty = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const token = localStorage.getItem('token');
+  const currentUser = getStoredUser();
+  const token = getStoredToken();
 
   useEffect(() => {
     const fetchProperty = async () => {

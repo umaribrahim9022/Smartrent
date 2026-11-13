@@ -3,17 +3,17 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Sparkles, Bookmark, Calendar, MessageSquare, LogOut, PlusSquare, LayoutDashboard, Menu, X } from 'lucide-react';
 import NotificationCenter from './NotificationCenter';
 import ThemeToggle from './ThemeToggle';
+import { getStoredToken, getStoredUser, clearStoredAuth } from '../utils/authStorage';
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const token = getStoredToken();
+  const user = getStoredUser();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearStoredAuth();
     navigate('/login');
   };
 

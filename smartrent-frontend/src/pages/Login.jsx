@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Building2, Mail, Lock, Eye, EyeOff, KeyRound, ArrowLeft, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { setStoredAuth } from '../utils/authStorage';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -44,8 +45,7 @@ const Login = () => {
       const data = await res.json();
 
       if (data.success && data.token) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        setStoredAuth(data.token, data.user);
         navigate('/');
       } else if (data.needsVerification || res.status === 403) {
         // Trigger verification step
@@ -85,8 +85,7 @@ const Login = () => {
       const data = await res.json();
 
       if (data.success && data.token) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        setStoredAuth(data.token, data.user);
         navigate('/');
       } else {
         setError(data.message || 'Invalid or expired OTP. Please try again.');

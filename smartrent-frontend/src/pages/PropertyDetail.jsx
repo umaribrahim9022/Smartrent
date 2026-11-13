@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import PropertyAnalyticsBadge from '../components/PropertyAnalyticsBadge';
 import BookmarkButton from '../components/BookmarkButton';
+import { getStoredUser, getStoredToken } from '../utils/authStorage';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -86,7 +87,7 @@ const PropertyDetail = () => {
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     if (!token || !id) return;
     fetch(`${API_BASE}/saved-properties/ids`, {
       headers: { Authorization: `Bearer ${token}` }
@@ -107,10 +108,10 @@ const PropertyDetail = () => {
           cache: 'no-store'
         });
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.data?.property) {
           setProperty(data.data.property);
         } else {
-          setError('Property not found');
+          setError(data.message || 'Property not found');
         }
       } catch (err) {
         setError('Failed to fetch property details');
@@ -145,7 +146,7 @@ const PropertyDetail = () => {
   };
 
   const handleBook = () => {
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     if (!token) {
       alert('Please log in as a renter to book properties');
       navigate('/login');
@@ -157,7 +158,7 @@ const PropertyDetail = () => {
 
   const handleConfirmBooking = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     if (!token) {
       alert('Please log in as a renter to book properties');
       navigate('/login');
@@ -200,7 +201,7 @@ const PropertyDetail = () => {
   };
 
   const handleMessageOwner = async () => {
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     if (!token) {
       alert('Please log in to message the owner');
       return;
@@ -238,7 +239,7 @@ const PropertyDetail = () => {
     if (!window.confirm(`Are you sure you want to permanently delete "${property.title}"?`)) {
       return;
     }
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     try {
       const res = await fetch(`${API_BASE}/properties/${property._id}`, {
         method: 'DELETE',
@@ -257,7 +258,7 @@ const PropertyDetail = () => {
     }
   };
 
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const currentUser = getStoredUser();
   const ownerId = property?.owner?._id || property?.owner;
   const canManage = Boolean(currentUser?._id && (currentUser._id === ownerId || currentUser.role === 'admin'));
 
@@ -412,7 +413,7 @@ const PropertyDetail = () => {
                   className="w-10 h-10 rounded-full flex items-center justify-center font-bold"
                   style={{ background: 'var(--brand-soft)', color: 'var(--brand-strong)' }}
                 >
-                  {property.owner.name.charAt(0).toUpperCase()}
+                  {property?.owner?.name?.charAt(0)?.toUpperCase() || '?'}
                 </div>
                 <div>
                   <p className="font-bold" style={{ color: 'var(--ink)' }}>{property.owner.name}</p>

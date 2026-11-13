@@ -3,6 +3,7 @@ import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { MapPin, Bed, Bath, SlidersHorizontal, RotateCcw, CheckCircle2 } from 'lucide-react';
 import PropertyAnalyticsBadge from '../components/PropertyAnalyticsBadge';
 import BookmarkButton from '../components/BookmarkButton';
+import { getStoredToken } from '../utils/authStorage';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -15,7 +16,7 @@ const Properties = () => {
   const [savedIds, setSavedIds] = useState([]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     if (!token) return;
     fetch(`${API_BASE}/saved-properties/ids?_t=${Date.now()}`, {
       cache: 'no-store',

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Pencil, Trash2, ExternalLink, PlusSquare, Building, MapPin, Loader2 } from 'lucide-react';
+import { getStoredUser, getStoredToken } from '../utils/authStorage';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -19,7 +20,7 @@ const Profile = () => {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const localUser = getStoredUser();
     setUser(localUser);
     if (localUser.preferences) {
       setPreferences(localUser.preferences);

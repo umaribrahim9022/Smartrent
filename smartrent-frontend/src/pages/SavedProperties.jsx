@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bookmark, MapPin, Trash2, Bed, Bath, ArrowRight, Building, Loader2, Sparkles } from 'lucide-react';
+import { getStoredToken } from '../utils/authStorage';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -10,7 +11,7 @@ const SavedProperties = () => {
   const [removingId, setRemovingId] = useState(null);
 
   const fetchSaved = async () => {
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     if (!token) {
       setLoading(false);
       return;
@@ -37,7 +38,7 @@ const SavedProperties = () => {
   const handleRemove = async (propertyId) => {
     if (!propertyId) return;
     setRemovingId(propertyId);
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     try {
       const res = await fetch(`${API_BASE}/saved-properties/${propertyId}`, {
         method: 'DELETE',

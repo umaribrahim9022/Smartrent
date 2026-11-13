@@ -4,6 +4,7 @@ import {
   Shield, Sparkles, X, CheckCircle2 
 } from 'lucide-react';
 import { io } from 'socket.io-client';
+import { getStoredToken, getStoredUser } from '../utils/authStorage';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
@@ -14,8 +15,8 @@ const NotificationCenter = () => {
   const dropdownRef = useRef(null);
   const socketRef = useRef(null);
 
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const token = localStorage.getItem('token');
+  const currentUser = getStoredUser();
+  const token = getStoredToken();
 
   const fetchNotifications = async () => {
     if (!token) return;

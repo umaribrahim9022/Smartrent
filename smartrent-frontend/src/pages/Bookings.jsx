@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin, Trash2, Loader2, CheckCircle, XCircle, Clock, Building, ArrowRight } from 'lucide-react';
+import { getStoredUser, getStoredToken } from '../utils/authStorage';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -8,11 +9,11 @@ const Bookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getStoredUser();
   const isOwner = user.role === 'owner';
 
   const fetchBookings = async () => {
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     try {
       const res = await fetch(`${API_BASE}/bookings`, {
         headers: { Authorization: `Bearer ${token}` }

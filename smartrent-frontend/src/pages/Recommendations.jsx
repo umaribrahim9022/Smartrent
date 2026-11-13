@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Sparkles, MapPin, Bed, Bath, CheckCircle, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { getStoredToken } from '../utils/authStorage';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const Recommendations = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
     const fetchRecommendations = async () => {
-      const token = localStorage.getItem('token');
+      const token = getStoredToken();
       if (!token) {
         setLoading(false);
         return;
@@ -31,10 +33,10 @@ const Recommendations = () => {
     };
 
     fetchRecommendations();
-  }, [API_BASE]);
+  }, []);
 
   const handleBook = async (propertyId, price) => {
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     if (!token) {
       alert('Please log in as a renter to book properties');
       return;
