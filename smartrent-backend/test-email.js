@@ -2,28 +2,24 @@ require('dotenv').config();
 const sendEmail = require('./utils/sendEmail');
 
 async function testEmail() {
-  console.log('Testing Email Configuration:');
-  console.log('RESEND_API_KEY:', process.env.RESEND_API_KEY ? 'Configured (' + process.env.RESEND_API_KEY.slice(0, 7) + '...)' : 'Not set');
-  console.log('RESEND_FROM:', process.env.RESEND_FROM || 'SmartRent <onboarding@resend.dev>');
-  console.log('SMTP_EMAIL:', process.env.SMTP_EMAIL || 'Not set');
-
-  const testRecipient = process.env.TEST_EMAIL || process.env.SMTP_EMAIL || 'delivered@resend.dev';
+  const target = process.env.TEST_EMAIL || 'nouraizashraf08@gmail.com';
+  console.log(`[Test] Sending OTP email to ${target} via sendEmail utility...`);
 
   try {
     const result = await sendEmail({
-      email: testRecipient,
-      subject: 'SmartRent Resend Test OTP',
-      message: 'Your test OTP code is: 123456',
+      email: target,
+      subject: 'SmartRent OTP Test',
+      message: 'Your verification OTP is 654321',
       html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-          <h2 style="color: #4f46e5;">SmartRent.AI Test</h2>
-          <p>Your test OTP is: <strong style="font-size: 24px; color: #4338ca;">123456</strong></p>
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+          <h2 style="color: #4f46e5;">SmartRent Verification Code</h2>
+          <p>Your code is: <strong style="font-size: 26px; color: #4338ca;">654321</strong></p>
         </div>
       `
     });
-    console.log('\nResult:', result);
+    console.log('[Test Success] Result:', result);
   } catch (err) {
-    console.error('\nTest failed:', err.message);
+    console.error('[Test Failed] Error:', err);
   }
 }
 

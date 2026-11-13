@@ -1,46 +1,11 @@
-const { Resend } = require('resend');
-const nodemailer = require('nodemailer');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
-let resendClient = null;
-let nodemailerTransporter = null;
-
-const getResendClient = () => {
-  if (!resendClient && process.env.RESEND_API_KEY) {
-    resendClient = new Resend(process.env.RESEND_API_KEY);
-  }
-  return resendClient;
-};
-
-const getNodemailerTransporter = () => {
-  if (!nodemailerTransporter) {
-    const emailUser = process.env.SMTP_EMAIL || 'smartrent026@gmail.com';
-    const emailPass = process.env.SMTP_PASSWORD;
-
-    nodemailerTransporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: emailUser,
-        pass: emailPass,
-      },
-      pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
-      connectionTimeout: 8000,
-      greetingTimeout: 5000,
-      socketTimeout: 12000,
-    });
-  }
-  return nodemailerTransporter;
-};
-
 /**
  * Universal sendEmail helper:
- * 1. Primary: Uses Resend API (HTTP-based, instant, zero SMTP blocks) when RESEND_API_KEY is configured.
- * 2. Fallback: Uses Nodemailer SMTP if RESEND_API_KEY is not configured or fails.
+ * 1. Primary: Brevo API (No custom domain needed, works from any IP/Railway, 300 free/day)
+ * 2. Secondary: Resend API (if configured)
+ * 3. Fallback: Nodemailer SMTP
  */
 const sendEmail = async (options) => {
   const toEmail = options.email;
@@ -48,13 +13,53 @@ const sendEmail = async (options) => {
   const text = options.message || '';
   const html = options.html || `<p>${text}</p>`;
 
-  // 1. Try Resend if API key is provided
+  // 1. PRIMARY: Brevo REST API
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  if (brevoApiKey) {
+    try {
+      const senderEmail = process.env.BREVO_SENDER_EMAIL || 'smartrent026@gmail.com';
+      const senderName = process.env.BREVO_SENDER_NAME || 'SmartRent.AI';
+
+      const payload = {
+        sender: { name: senderName, email: senderEmail },
+        to: [{ email: toEmail }],
+        subject: subject,
+        htmlContent: html,
+        textContent: text || undefined
+      };
+
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoApiKey,
+          'Content-Type': 'application/json',
+          'accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.messageId) {
+        console.log(`[Brevo Sent] Email to ${toEmail} delivered successfully. ID: ${data.messageId}`);
+        return { success: true, provider: 'brevo', messageId: data.messageId };
+      } else {
+        console.error(`[Brevo API Error] Failed for ${toEmail}:`, data);
+        // Fall through to other providers if available
+      }
+    } catch (brevoErr) {
+      console.error(`[Brevo Network Error] ${brevoErr.message}`);
+    }
+  }
+
+  // 2. SECONDARY: Resend API
   if (process.env.RESEND_API_KEY) {
     try {
-      const client = getResendClient();
+      const { Resend } = require('resend');
+      const resend = new Resend(process.env.RESEND_API_KEY);
       const fromSender = process.env.RESEND_FROM || 'SmartRent <onboarding@resend.dev>';
 
-      const { data, error } = await client.emails.send({
+      const { data, error } = await resend.emails.send({
         from: fromSender,
         to: [toEmail],
         subject: subject,
@@ -62,46 +67,48 @@ const sendEmail = async (options) => {
         html: html,
       });
 
-      if (error) {
-        if (error.statusCode === 403 || error.message?.includes('testing emails')) {
-          console.warn(`\n⚠️  [Resend Testing Notice] Free Resend (onboarding@resend.dev) can only deliver to your Resend account email (umaribrahim220099@gmail.com).`);
-          console.warn(`👉 To send emails to any recipient, add and verify your custom domain at https://resend.com/domains\n`);
-        }
-        throw new Error(`Resend API error: ${JSON.stringify(error)}`);
+      if (!error && data?.id) {
+        console.log(`[Resend Sent] Email to ${toEmail} delivered. ID: ${data.id}`);
+        return { success: true, provider: 'resend', id: data.id };
       }
-
-      console.log(`[Resend Sent] Email to ${toEmail} delivered successfully. ID: ${data?.id}`);
-      return { success: true, provider: 'resend', id: data?.id };
-    } catch (resendError) {
-      console.error(`[Resend Error] Failed to send email to ${toEmail}:`, resendError.message);
-      // Fall through to try Nodemailer fallback if available
+    } catch (resendErr) {
+      console.warn(`[Resend Error] ${resendErr.message}`);
     }
   }
 
-  // 2. Fallback to Nodemailer if configured
+  // 3. FALLBACK: Nodemailer (if configured)
   if (process.env.SMTP_PASSWORD && process.env.SMTP_EMAIL) {
     try {
-      const transporter = getNodemailerTransporter();
-      const fromAddress = `"SmartRent Support" <${process.env.SMTP_EMAIL}>`;
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: process.env.SMTP_EMAIL,
+          pass: process.env.SMTP_PASSWORD,
+        },
+        connectionTimeout: 8000
+      });
 
       const info = await transporter.sendMail({
-        from: fromAddress,
+        from: `"SmartRent Support" <${process.env.SMTP_EMAIL}>`,
         to: toEmail,
         subject: subject,
         text: text,
         html: html,
       });
 
-      console.log(`[Nodemailer Sent] Email to ${toEmail} delivered successfully. ID: ${info.messageId}`);
+      console.log(`[Nodemailer Sent] Email to ${toEmail} delivered. ID: ${info.messageId}`);
       return { success: true, provider: 'nodemailer', id: info.messageId };
-    } catch (smtpError) {
-      console.error(`[Nodemailer Error] Failed to send email to ${toEmail}:`, smtpError.message);
-      throw smtpError;
+    } catch (smtpErr) {
+      console.error(`[Nodemailer Error] ${smtpErr.message}`);
+      throw smtpErr;
     }
   }
 
-  console.warn(`[sendEmail Warning] Neither valid RESEND_API_KEY nor working SMTP_PASSWORD configured. Simulated delivery for ${toEmail}`);
-  return { success: false, message: 'No active email provider configured' };
+  console.warn(`[sendEmail] No active email provider succeeded for ${toEmail}`);
+  return { success: false, message: 'Delivery simulated' };
 };
 
 module.exports = sendEmail;
