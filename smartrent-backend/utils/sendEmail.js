@@ -17,7 +17,7 @@ const sendEmail = async (options) => {
   const brevoApiKey = process.env.BREVO_API_KEY;
   if (brevoApiKey) {
     try {
-      const senderEmail = process.env.BREVO_SENDER_EMAIL || 'smartrent026@gmail.com';
+      const senderEmail = process.env.BREVO_SENDER_EMAIL || 'umaribrahim220099@gmail.com';
       const senderName = process.env.BREVO_SENDER_NAME || 'SmartRent.AI';
 
       const payload = {
